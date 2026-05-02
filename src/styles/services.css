@@ -1,0 +1,223 @@
+/* --- SERVICES PAGE STYLES --- */
+
+.services-page-wrapper {
+    position: relative;
+    width: 100%;
+    min-height: 100vh;
+    padding: 160px 20px 80px; 
+    overflow: hidden;
+    background-color: #f0fdf4; /* Match exact light mint background */
+    box-sizing: border-box;
+}
+
+/* Faint background dots */
+.services-page-wrapper::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image: radial-gradient(rgba(5, 150, 105, 0.08) 2px, transparent 2px);
+    background-size: 40px 40px;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.sp-container {
+    width: 100%;
+    max-width: 1100px;
+    margin: 0 auto;
+    position: relative;
+    z-index: 2;
+    box-sizing: border-box;
+}
+
+.sp-header {
+    text-align: center;
+    margin-bottom: 40px;
+    width: 100%;
+}
+
+.sp-header h1 {
+    font-size: 3rem;
+    color: #064e3b;
+    font-weight: 900; 
+    margin: 0 0 15px 0;
+    letter-spacing: -1px;
+}
+
+.sp-header p {
+    font-size: 1.1rem;
+    color: #64748b;
+    max-width: 600px;
+    margin: 0 auto;
+    line-height: 1.6;
+}
+
+/* Search Bar */
+.sp-search-bar {
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto 30px;
+    background: white;
+    border-radius: 50px;
+    display: flex;
+    align-items: center;
+    padding: 8px 30px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.03);
+    box-sizing: border-box;
+    border: 1px solid rgba(0,0,0,0.05);
+}
+
+.sp-search-bar input {
+    flex: 1;
+    border: none;
+    outline: none;
+    padding: 12px 0;
+    font-family: inherit;
+    font-size: 1rem;
+    color: #1e293b;
+    background: transparent;
+}
+
+.sp-search-bar input::placeholder {
+    color: #94a3b8;
+}
+
+.sp-search-bar i {
+    color: #059669;
+    font-size: 1.2rem;
+    cursor: pointer;
+}
+
+/* Filters */
+.sp-filters {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    margin-bottom: 50px;
+    flex-wrap: wrap;
+    width: 100%;
+}
+
+.sp-filter-btn {
+    padding: 10px 28px;
+    border-radius: 50px;
+    border: none;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.sp-filter-btn.active {
+    background-color: #059669;
+    color: white;
+    box-shadow: 0 4px 15px rgba(5, 150, 105, 0.3);
+}
+
+.sp-filter-btn.inactive {
+    background-color: white;
+    color: #64748b;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.02);
+}
+
+.sp-filter-btn.inactive:hover {
+    color: #059669;
+    background-color: #f8fafc;
+}
+
+/* Main White Grid Container */
+.sp-main-card {
+    width: 100%;
+    background: white;
+    border-radius: 24px;
+    padding: 50px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.04);
+    box-sizing: border-box;
+}
+
+.sp-grid {
+    display: grid;
+    /* This auto-fit rule is what forces the beautiful 3-column layout */
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); 
+    gap: 30px;
+    width: 100%;
+}
+
+/* Individual Service Card */
+.sp-service-card {
+    width: 100%;
+    background: white;
+    border-radius: 20px;
+    padding: 40px 25px;
+    text-align: center;
+    border: 1px solid #f1f5f9;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.03);
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    box-sizing: border-box;
+}
+
+.sp-service-card:hover {
+    border-color: #d1fae5;
+    box-shadow: 0 20px 40px rgba(5, 150, 105, 0.1);
+    transform: translateY(-8px);
+}
+
+.sp-service-icon {
+    font-size: 3rem;
+    color: #059669;
+    margin-bottom: 20px;
+}
+
+.sp-service-card h3 {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #1e293b;
+    margin: 0 0 15px 0;
+}
+
+.sp-service-card p {
+    font-size: 0.95rem;
+    color: #64748b;
+    line-height: 1.6;
+    margin: 0 0 30px 0;
+    flex-grow: 1;
+}
+
+.sp-btn-request {
+    background: #059669;
+    color: white;
+    border: none;
+    border-radius: 50px;
+    padding: 12px 30px;
+    width: 90%; 
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 0.95rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.sp-btn-request:hover {
+    background: #047857;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 15px rgba(5, 150, 105, 0.25);
+}
+
+.sp-no-results {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px;
+    color: #64748b;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .sp-grid { grid-template-columns: 1fr; }
+    .sp-header h1 { font-size: 2.2rem; }
+    .services-page-wrapper { padding-top: 120px; padding-left: 15px; padding-right: 15px; }
+    .sp-main-card { padding: 30px 20px; }
+}
