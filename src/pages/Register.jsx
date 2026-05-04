@@ -33,7 +33,7 @@ const Register = () => {
     birth_province: '',
     birth_country: 'Philippines',
     
-    // Address
+    // Address (Base on Database Schema)
     house_no: '',
     street: '',
     zone: '',
@@ -460,11 +460,49 @@ const Register = () => {
                     {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
+                <div className="form-group"><label>Birth City *</label><input type="text" name="birth_city" required onChange={handleChange} /></div>
+                <div className="form-group"><label>Birth Province *</label><input type="text" name="birth_province" required onChange={handleChange} /></div>
+                <div className="form-group"><label>Birth Country *</label><input type="text" name="birth_country" value={formData.birth_country} onChange={handleChange} /></div>
               </div>
 
-              {/* SECTION 3: SECTORAL CLASSIFICATIONS */}
+              {/* NEW SECTION: RESIDENTIAL ADDRESS */}
               <div className="section-header">
                 <div className="badge">3</div>
+                <span className="title">Residential Address (Barangay Pasong Buaya II)</span>
+              </div>
+              <div className="input-grid">
+                <div className="form-group"><label>House No. *</label><input type="text" name="house_no" required onChange={handleChange} /></div>
+                <div className="form-group"><label>Street *</label><input type="text" name="street" required onChange={handleChange} /></div>
+                <div className="form-group"><label>Zone / Purok *</label><input type="text" name="zone" required onChange={handleChange} /></div>
+                <div className="form-group"><label>Subdivision / Village</label><input type="text" name="subdivision" onChange={handleChange} /></div>
+                <div className="form-group"><label>Area</label><input type="text" name="area" onChange={handleChange} /></div>
+                <div className="form-group"><label>Block & Lot</label><input type="text" name="block_lot" onChange={handleChange} /></div>
+                <div className="form-group span-2"><label>Landmark</label><input type="text" name="landmark" onChange={handleChange} /></div>
+                <div className="form-group"><label>Years in PB2 *</label><input type="number" name="years_in_PB2" required onChange={handleChange} /></div>
+                <div className="form-group span-3">
+                  <label>Residency Status *</label>
+                  <select name="residency_status" required onChange={handleChange}>
+                    <option value="Homeowner">HOMEOWNER</option>
+                    <option value="Tenant">TENANT</option>
+                    <option value="Sharer">SHARER</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* SECTION: EMERGENCY CONTACT */}
+              <div className="section-header">
+                <div className="badge">4</div>
+                <span className="title">Emergency Contact Information</span>
+              </div>
+              <div className="input-grid">
+                <div className="form-group"><label>Contact Person *</label><input type="text" name="contact_person" required onChange={handleChange} /></div>
+                <div className="form-group"><label>Mobile Number *</label><input type="text" name="contactp_num" required onChange={handleChange} /></div>
+                <div className="form-group"><label>Relationship *</label><input type="text" name="contactp_relationship" required onChange={handleChange} /></div>
+              </div>
+
+              {/* SECTION: SECTORAL CLASSIFICATIONS */}
+              <div className="section-header">
+                <div className="badge">5</div>
                 <span className="title">Special Sectoral Classifications</span>
               </div>
               <div className="sector-checkbox-group">
@@ -518,22 +556,29 @@ const Register = () => {
                 )}
               </div>
 
-              {/* SECTION 4: PRIMARY AUTHENTICATION */}
+              {/* SECTION: PRIMARY AUTHENTICATION */}
               <div className="section-header">
-                <div className="badge">4</div>
+                <div className="badge">6</div>
                 <span className="title">Identification Authentication Documents</span>
               </div>
               <div className="input-grid">
                 <div className="form-group span-3">
+                  <label>PhilSys National ID Number (Optional)</label>
+                  <input type="text" name="philsys_nat_id" placeholder="1234-5678-9012" onChange={handleChange} />
+                </div>
+                <div className="form-group span-3">
                   <label>Primary ID Type to be Verified *</label>
                   <select name="valid_id" required onChange={handleChange}>
                     <option value="">-- SELECT ID TYPE --</option>
-                    <option value="National ID">NATIONAL ID (PHILID)</option>
+                    <option value="National ID (PhilID/ePhilID)">NATIONAL ID (PHILID)</option>
                     <option value="Passport">PASSPORT</option>
                     <option value="Drivers License">DRIVER'S LICENSE</option>
-                    <option value="UMID">UMID (SSS/GSIS)</option>
+                    <option value="UMID (SSS/GSIS)">UMID (SSS/GSIS)</option>
                     <option value="Voters ID">VOTER'S ID</option>
                     <option value="Postal ID">POSTAL ID</option>
+                    <option value="PRC ID">PRC ID</option>
+                    <option value="PhilHealth ID">PHILHEALTH ID</option>
+                    <option value="TIN ID">TIN ID</option>
                   </select>
                 </div>
                 <div className="form-group file-input-wrapper">
