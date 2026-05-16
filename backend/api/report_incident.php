@@ -20,6 +20,11 @@ foreach ($required_fields as $field) {
     }
 }
 
+if (!isset($_FILES['attachment']) || empty($_FILES['attachment']['name'])) {
+    echo json_encode(['success' => false, 'message' => 'Evidence attachment is required']);
+    exit;
+}
+
 // Sanitize input data
 $user_id = intval($_POST['user_id']);
 $reporter_name = mysqli_real_escape_string($conn, $_POST['reporter_name']);
@@ -37,43 +42,41 @@ $status = 'Pending';
 $attachment_path = null;
 $attachment_type = null;
 
-// Handle file upload if provided
-if (isset($_FILES['attachment']) && !empty($_FILES['attachment']['name'])) {
-    $allowed_image = ['jpg', 'jpeg', 'png'];
-    $allowed_video = ['mp4'];
-    
-    $file_ext = strtolower(pathinfo($_FILES['attachment']['name'], PATHINFO_EXTENSION));
-    
-    if (in_array($file_ext, $allowed_image)) {
-        $attachment_type = 'image';
-    } elseif (in_array($file_ext, $allowed_video)) {
-        $attachment_type = 'video';
-    } else {
-        echo json_encode(['success' => false, 'message' => 'Invalid file type. Only JPG, PNG, and MP4 are allowed.']);
-        exit;
-    }
-    
-    // Validate file size (10MB max)
-    if ($_FILES['attachment']['size'] > 10 * 1024 * 1024) {
-        echo json_encode(['success' => false, 'message' => 'File size exceeds 10MB limit.']);
-        exit;
-    }
-    
-    // Create upload directory if it doesn't exist
-    $upload_dir = "../api/uploads/incidents/";
-    if (!is_dir($upload_dir)) {
-        mkdir($upload_dir, 0777, true);
-    }
-    
-    // Generate unique filename
-    $file_name = uniqid("incident_") . "." . $file_ext;
-    $attachment_path = $upload_dir . $file_name;
-    
-    // Move uploaded file
-    if (!move_uploaded_file($_FILES['attachment']['tmp_name'], $attachment_path)) {
-        echo json_encode(['success' => false, 'message' => 'Failed to upload file.']);
-        exit;
-    }
+// Handle required file upload
+$allowed_image = ['jpg', 'jpeg', 'png'];
+$allowed_video = ['mp4'];
+
+$file_ext = strtolower(pathinfo($_FILES['attachment']['name'], PATHINFO_EXTENSION));
+
+if (in_array($file_ext, $allowed_image)) {
+    $attachment_type = 'image';
+} elseif (in_array($file_ext, $allowed_video)) {
+    $attachment_type = 'video';
+} else {
+    echo json_encode(['success' => false, 'message' => 'Invalid file type. Only JPG, PNG, and MP4 are allowed.']);
+    exit;
+}
+
+// Validate file size (10MB max)
+if ($_FILES['attachment']['size'] > 10 * 1024 * 1024) {
+    echo json_encode(['success' => false, 'message' => 'File size exceeds 10MB limit.']);
+    exit;
+}
+
+// Create upload directory if it doesn't exist
+$upload_dir = "../api/uploads/incidents/";
+if (!is_dir($upload_dir)) {
+    mkdir($upload_dir, 0777, true);
+}
+
+// Generate unique filename
+$file_name = uniqid("incident_") . "." . $file_ext;
+$attachment_path = $upload_dir . $file_name;
+
+// Move uploaded file
+if (!move_uploaded_file($_FILES['attachment']['tmp_name'], $attachment_path)) {
+    echo json_encode(['success' => false, 'message' => 'Failed to upload file.']);
+    exit;
 }
 
 // Check if incident_reports table exists, if not create it
