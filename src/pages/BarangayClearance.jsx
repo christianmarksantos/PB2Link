@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext'; 
+import { useNavigate } from 'react-router-dom';
+import Header from '../components/Header';
+import Footer from '../components/Footer';
+import Preloader from '../components/Preloader';
+import '../styles/barangayDocuments.css'; 
 
 const API_BASE = '/api_backend';
 
@@ -8,34 +13,29 @@ const BarangayClearance = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [requestMode, setRequestMode] = useState('Self');
   const [trackingCode, setTrackingCode] = useState('');
-  
-  // Toast State
   const [toast, setToast] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     fName: '', mName: '', lName: '', suffix: '',
-    civilStatus: '', gender: '',
+    age: '', birth_date: '', civil_status: '', gender: '',
     block_lot: '', houseNo: '', street: '', subdivision: '', zone: '',
     years_in_PB2: '', precinct: '', sector: '',
     purpose: '', otherPurposeText: '',
-    // Beneficiary fields
     other_fname: '', other_mname: '', other_lname: '', other_suffix: '',
-    other_gender: '', other_civil_status: '', other_sector: '',
+    other_age: '', other_birth_date: '', other_gender: '', other_civil_status: '', other_sector: '',
     other_block_lot: '', other_houseNo: '', other_street: '', 
     other_subdivision: '', other_zone: '', other_years_in_PB2: '', 
     other_precinct: '',
-    // Files
     id_front: null, id_back: null, id_holding: null
   });
 
-  // 1. Generate Tracking Code
   useEffect(() => {
     const date = new Date().toISOString().slice(0, 10).replace(/-/g, "");
     const randomHash = Math.random().toString(36).substring(2, 8).toUpperCase();
     setTrackingCode(`CLR-${date}-${randomHash}`);
   }, []);
 
-  // 2. Fetch Profile Data
   useEffect(() => {
   if (user?.user_id) {
     fetch(`${API_BASE}/get_user_profile.php?user_id=${user.user_id}`)
@@ -45,54 +45,45 @@ const BarangayClearance = () => {
           const d = data.data;
           setFormData(prev => ({
             ...prev,
-            // CRITICAL: You must capture the numeric resident_id from the DB
             resident_id: d.resident_id, 
             fName: d.fName || '',
             mName: d.mName || '',
             lName: d.lName || '',
-              suffix: d.suffix || 'N/A',
-              civilStatus: d.civil_status || 'Single',
-              gender: d.gender || '',
-              block_lot: d.block_lot || '',
-              houseNo: d.house_no || '',
-              street: d.street || '',
-              subdivision: d.subdivision || '',
-              zone: d.zone || '',
-              years_in_PB2: d.years_in_PB2 || '',
-              precinct: d.precinct_no || 'N/A',
-              sector: d.sector || 'N/A'
-            }));
-          }
-        })
-        .catch(err => console.error("Failed to fetch profile", err));
+            suffix: d.suffix || 'N/A',
+            age: d.age || '',
+            birth_date: d.birth_date || '',
+            civil_status: d.civil_status || 'Single',
+            gender: d.gender || '',
+            block_lot: d.block_lot || '',
+            houseNo: d.house_no || '',
+            street: d.street || '',
+            subdivision: d.subdivision || '',
+            zone: d.zone || '',
+            years_in_PB2: d.years_in_PB2 || '',
+            precinct: d.precinct_no || 'N/A',
+            sector: d.sector || 'N/A'
+          }));
+        }
+      })
+      .catch(err => console.error("Failed to fetch profile", err));
     }
   }, [user]);
 
-  // Validation Logic
   const validateStep = () => {
     if (currentStep === 0) {
       if (requestMode === 'Self') {
         return formData.purpose && (formData.purpose !== 'Other' || formData.otherPurposeText);
       } else {
         return (
-          formData.other_fname && 
-          formData.other_lname && 
-          formData.other_gender && 
-          formData.other_civil_status && 
-          formData.purpose && 
+          formData.other_fname && formData.other_lname && formData.other_gender && 
+          formData.other_civil_status && formData.purpose && 
           (formData.purpose !== 'Other' || formData.otherPurposeText)
         );
       }
     }
     if (currentStep === 1) {
-      if (requestMode === 'Self') return true; // Profile data is guaranteed if loaded
-      return (
-        formData.other_block_lot && 
-        formData.other_street && 
-        formData.other_subdivision && 
-        formData.other_zone && 
-        formData.other_years_in_PB2
-      );
+      if (requestMode === 'Self') return true;
+      return (formData.other_block_lot && formData.other_street && formData.other_subdivision && formData.other_years_in_PB2);
     }
     if (currentStep === 2) {
       return formData.id_front && formData.id_back && formData.id_holding;
@@ -100,28 +91,35 @@ const BarangayClearance = () => {
     return true;
   };
 
-  // Toast Function
   const showToast = (title, message, type = 'success') => {
     setToast({ title, message, type });
-    setTimeout(() => setToast(null), 5000);
+    setTimeout(() => setToast(null), 500);
   };
 
-const handleSubmit = async () => {
-  const data = new FormData();
-  
-  // This sends the internal ID (e.g., 2, 13) required by the DB
-  data.append('resident_id', formData.resident_id); 
-  data.append('tracking_code', trackingCode);
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    const data = new FormData();
+    data.append('resident_id', formData.resident_id); 
+    data.append('tracking_code', trackingCode);
     data.append('request_mode', requestMode);
     data.append('purpose', formData.purpose === 'Other' ? formData.otherPurposeText : formData.purpose);
+    // For "Self" mode (if the data coming from the database might not have a zone)
+const zoneSelf = formData.zone ? `, Zone ${formData.zone}` : '';
+
+// For "Others" mode (where the user types it in)
+const zoneOther = formData.other_zone ? `, Zone ${formData.other_zone}` : '';
+
 
     if (requestMode === 'Self') {
         data.append('fName', formData.fName);
         data.append('mName', formData.mName);
         data.append('lName', formData.lName);
         data.append('suffix', formData.suffix);
-        data.append('civil_status', formData.civilStatus);
-        data.append('address', `${formData.block_lot}, ${formData.street}, ${formData.subdivision}, Zone ${formData.zone}`);
+        data.append('birth_date', formData.birth_date);
+       // data.append('age', formData.age);
+        data.append('civil_status', formData.civil_status);
+        data.append('gender', formData.gender);
+       data.append('address', `${formData.block_lot}, ${formData.street}, ${formData.subdivision}${zoneSelf}`);
         data.append('sector', formData.sector);
         data.append('years_in_PB2', formData.years_in_PB2);
         data.append('precinct_no', formData.precinct);
@@ -131,8 +129,11 @@ const handleSubmit = async () => {
         data.append('mName', formData.other_mname);
         data.append('lName', formData.other_lname);
         data.append('suffix', formData.other_suffix);
+        data.append('birth_date', formData.other_birth_date);
+        //data.append('age', formData.other_age);
+        data.append('gender', formData.other_gender);
         data.append('civil_status', formData.other_civil_status);
-        data.append('address', `${formData.other_block_lot}, ${formData.other_street}, ${formData.other_subdivision}, Zone ${formData.other_zone}`);
+        data.append('address', `${formData.other_block_lot}, ${formData.other_street}, ${formData.other_subdivision}${zoneOther}`);
         data.append('sector', formData.other_sector);
         data.append('years_in_PB2', formData.other_years_in_PB2);
         data.append('precinct_no', formData.other_precinct);
@@ -148,15 +149,18 @@ const handleSubmit = async () => {
             method: 'POST',
             body: data,
         });
-
         const result = await response.json();
+        
         if (result.success) {
             showToast('Success!', result.message, 'success');
+            // Optional: navigate away or reset form here
         } else {
             showToast('Error', result.message, 'error');
+            setIsSubmitting(false); // Re-enable so they can fix errors
         }
     } catch (error) {
         showToast('Server Error', 'Invalid response from server.', 'error');
+        setIsSubmitting(false); // Re-enable on crash
     }
 };
 
@@ -168,8 +172,24 @@ const handleSubmit = async () => {
   ];
 
   const handleInputChange = (e) => {
+   
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+
+    if (name === "other_birth_date") {
+        const calculatedAge = calculateAge(value);
+        
+        setFormData({
+            ...formData,
+            [name]: value,        
+            other_age: calculatedAge 
+        });
+    } else {
+        setFormData({
+            ...formData,
+            [name]: value
+        });
+    }
+
   };
 
   const handleFileChange = (e) => {
@@ -182,8 +202,21 @@ const handleSubmit = async () => {
   const renderFilePreview = (fileKey, label, subLabel, iconClass) => {
     const file = formData[fileKey];
     return (
-      <div className={`ep-file-upload-box ${file ? 'has-file' : ''}`} onClick={() => document.getElementById(fileKey).click()}>
-        <input type="file" id={fileKey} name={fileKey} style={{ display: 'none' }} onChange={handleFileChange} accept="image/*,application/pdf" />
+      <div 
+        className={`ep-file-upload-box ${file ? 'has-file' : ''}`} 
+        onClick={() => document.getElementById(fileKey).click()}
+        /* ACCESSIBILITY: title provides hover text, aria-label assists screen readers */
+        title={`Click to upload your ${label}`}
+        aria-label={`Upload box for ${label}`}
+      >
+        <input 
+          type="file" 
+          id={fileKey} 
+          name={fileKey} 
+          style={{ display: 'none' }} 
+          onChange={handleFileChange} 
+          accept="image/*,application/pdf" 
+        />
         {!file ? (
           <div className="ep-upload-content">
             <i className={`bi ${iconClass} ep-upload-icon`}></i>
@@ -194,241 +227,36 @@ const handleSubmit = async () => {
           <div className="ep-preview-container">
             <i className="bi bi-check-circle-fill ep-preview-icon"></i>
             <span className="ep-file-name">{file.name}</span>
-            <span className="ep-file-change">Click to change</span>
+            <span className="ep-file-change">Click to change file</span>
           </div>
         )}
       </div>
     );
   };
 
+const calculateAge = (birth_date) => {
+    const today = new Date();
+    const birth = new Date(birth_date);
+    let age = today.getFullYear() - birth.getFullYear();
+    const monthDiff = today.getMonth() - birth.getMonth();
+    
+    // Adjust if the birthday hasn't happened yet this year
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+        age--;
+    }
+    return age;
+};
+  
+
   return (
     <>
+      <Preloader />
+      <Header />
       <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
-      
-      <style>{`
-        /* --- SOPHISTICATED GLASSY WHITE THEME --- */
-        .ep-page-wrapper {
-          min-height: 100vh;
-          background-color: #011c16;
-          background-image: 
-            radial-gradient(circle at 15% 50%, rgba(5, 150, 105, 0.15), transparent 40%),
-            linear-gradient(180deg, #002e25 0%, #000000 100%);
-          padding: 60px 20px;
-          font-family: 'Poppins', sans-serif;
-          color: #1e293b;
-          display: flex;
-          justify-content: center;
-          align-items: center;
-        }
-
-        .ep-form-card {
-          background: rgba(255, 255, 255, 0.85);
-          backdrop-filter: blur(30px);
-          -webkit-backdrop-filter: blur(30px);
-          border-radius: 30px;
-          padding: 50px;
-          width: 100%;
-          max-width: 900px;
-          border: 1px solid rgba(255, 255, 255, 0.6);
-          box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(255, 255, 255, 0.8);
-        }
-
-        .ep-form-header {
-          text-align: center;
-          margin-bottom: 40px;
-        }
-        .ep-form-header h2 {
-          margin: 0 0 10px;
-          font-size: 2.5rem;
-          font-weight: 800;
-          color: #064e3b;
-          letter-spacing: -1px;
-        }
-        .ep-badge-official {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          background: #ecfdf5;
-          color: #059669;
-          padding: 6px 16px;
-          border-radius: 50px;
-          font-size: 0.85rem;
-          font-weight: 600;
-          border: 1px solid #a7f3d0;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-        }
-
-        /* --- STEPPER --- */
-        .ep-stepper-container {
-          margin-bottom: 50px;
-          position: relative;
-        }
-        .ep-stepper {
-          display: flex;
-          justify-content: space-between;
-          position: relative;
-          z-index: 1;
-        }
-        .ep-progress-bg {
-          position: absolute; top: 25px; left: 5%; width: 90%; height: 4px;
-          background: #e2e8f0; z-index: -1;
-        }
-        .ep-progress-fill {
-          position: absolute; top: 25px; left: 5%; height: 4px;
-          background: #059669; z-index: -1;
-          transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-          box-shadow: 0 0 10px rgba(5, 150, 105, 0.4);
-        }
-        .ep-step-item {
-          flex: 1; text-align: center; display: flex; flex-direction: column; align-items: center;
-        }
-        .ep-step-circle {
-          width: 54px; height: 54px; border-radius: 50%;
-          background: #ffffff; border: 2px solid #e2e8f0;
-          display: flex; align-items: center; justify-content: center;
-          color: #94a3b8; transition: 0.4s;
-        }
-        .ep-step-circle i {
-          font-size: 1.5rem;
-          display: inline-block;
-        }
-        .ep-step-label {
-          margin-top: 12px; font-size: 0.8rem; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 1px; transition: 0.4s;
-        }
-        
-        .ep-step-item.active .ep-step-circle {
-          border-color: #059669; color: #059669;
-          transform: scale(1.15); box-shadow: 0 10px 20px rgba(5, 150, 105, 0.15);
-          background: #ffffff;
-        }
-        .ep-step-item.active .ep-step-label { color: #059669; }
-        
-        .ep-step-item.completed .ep-step-circle {
-          background: #059669; border-color: #059669; color: #fff;
-        }
-        .ep-step-item.completed .ep-step-label { color: #064e3b; }
-
-        /* --- SMART TOGGLE --- */
-        .ep-toggle-wrapper { margin-bottom: 30px; }
-        .ep-toggle-label { display: block; font-size: 0.9rem; color: #475569; margin-bottom: 10px; font-weight: 600; }
-        .ep-toggle-container {
-          display: flex; background: #f1f5f9; padding: 6px; border-radius: 100px;
-          border: 1px solid #e2e8f0; position: relative; cursor: pointer;
-        }
-        .ep-toggle-option {
-          flex: 1; text-align: center; padding: 12px; font-weight: 600; z-index: 2;
-          color: #64748b; transition: 0.3s; font-size: 0.95rem;
-        }
-        .ep-toggle-option.active { color: #fff; }
-        .ep-toggle-slider {
-          position: absolute; top: 6px; bottom: 6px; left: 6px; width: calc(50% - 6px);
-          background: #059669; border-radius: 100px; z-index: 1;
-          transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-          box-shadow: 0 4px 15px rgba(5, 150, 105, 0.3);
-        }
-
-        /* --- INPUTS & GRIDS --- */
-        .ep-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
-        .ep-full { grid-column: span 2; }
-        
-        .ep-input-group { position: relative; }
-        .ep-input-group label {
-          display: block; font-size: 0.8rem; font-weight: 600; color: #475569;
-          margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;
-        }
-        .ep-input-group input, .ep-input-group select {
-          width: 100%; padding: 16px 20px; border-radius: 14px;
-          border: 1px solid #cbd5e1;
-          background: rgba(255, 255, 255, 0.6); color: #0f172a;
-          font-family: 'Poppins', sans-serif; font-size: 1rem;
-          transition: all 0.3s; outline: none; box-sizing: border-box;
-        }
-        .ep-input-group input:focus, .ep-input-group select:focus {
-          border-color: #059669; background: #ffffff;
-          box-shadow: 0 0 0 4px rgba(5, 150, 105, 0.1);
-        }
-        .ep-input-group input[readOnly] {
-          background: #f8fafc; color: #64748b; border-style: dashed; cursor: not-allowed;
-        }
-
-        .ep-section-title {
-          font-size: 1.2rem; color: #0f172a; border-bottom: 1px solid #e2e8f0;
-          padding-bottom: 15px; margin-bottom: 25px; display: flex; align-items: center; gap: 10px; font-weight: 700;
-        }
-        .ep-section-title i { color: #059669; }
-
-        .ep-info-note {
-          display: flex; align-items: center; gap: 15px; background: #ecfdf5;
-          padding: 15px 20px; border-radius: 12px; border-left: 4px solid #059669; margin-top: 20px;
-        }
-        .ep-info-note i { font-size: 1.5rem; color: #059669; }
-        .ep-info-note p { margin: 0; font-size: 0.9rem; color: #334155; }
-
-        /* --- FILE UPLOADS --- */
-        .ep-file-upload-box {
-          border: 2px dashed #cbd5e1; border-radius: 16px; padding: 40px 20px;
-          text-align: center; cursor: pointer; transition: 0.3s; background: rgba(255, 255, 255, 0.5);
-        }
-        .ep-file-upload-box:hover { border-color: #059669; background: #ecfdf5; }
-        .ep-file-upload-box.has-file { border-color: #059669; border-style: solid; background: #ecfdf5; }
-        
-        .ep-upload-content h4 { margin: 15px 0 5px; color: #0f172a; font-size: 1.1rem; }
-        .ep-upload-content p { margin: 0; color: #64748b; font-size: 0.85rem; }
-        .ep-upload-icon { font-size: 3rem; color: #94a3b8; transition: 0.3s; }
-
-       /* REVIEW BOX STYLING (To match Image) */
-        .ep-review-box { background: #ffffff; border-radius: 10px; padding: 20px; }
-        .ep-review-category { margin-top: 25px; }
-        .ep-review-category:first-child { margin-top: 0; }
-        .ep-review-category h5 { color: #059669; font-size: 0.85rem; font-weight: 800; text-transform: uppercase; border-bottom: 1px solid #eee; padding-bottom: 8px; margin-bottom: 12px; letter-spacing: 0.5px; }
-        .ep-review-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dotted #f1f5f9; }
-        .ep-review-label { color: #64748b; font-size: 0.9rem; }
-        .ep-review-val { color: #0f172a; font-weight: 700; font-size: 0.95rem; text-align: right; }
-        .ep-review-val.highlight { color: #d97706; font-family: monospace; }
-        .ep-attachment-tag { display: inline-flex; align-items: center; gap: 5px; background: #f0f9ff; color: #0369a1; padding: 4px 12px; border-radius: 50px; font-size: 0.8rem; border: 1px solid #bae6fd; margin-right: 8px; }
-
-        /* --- BUTTONS --- */
-        .ep-actions { display: flex; justify-content: space-between; margin-top: 50px; }
-        .ep-btn {
-          padding: 16px 35px; border-radius: 14px; font-weight: 700; font-size: 1.05rem;
-          border: none; cursor: pointer; display: flex; align-items: center; gap: 10px;
-          transition: 0.3s; font-family: 'Poppins'; text-transform: uppercase; letter-spacing: 1px;
-        }
-        .ep-btn-prev { background: #f1f5f9; color: #475569; }
-        .ep-btn-prev:disabled { opacity: 0.5; cursor: not-allowed; }
-        
-        .ep-btn-next { background: #059669; color: white; box-shadow: 0 10px 25px rgba(5, 150, 105, 0.3); }
-        .ep-btn-next:hover:not(:disabled) { background: #047857; transform: translateY(-3px); }
-        .ep-btn-next:disabled { background: #94a3b8; cursor: not-allowed; box-shadow: none; }
-
-        /* --- TOAST --- */
-        .ep-toast {
-          position: fixed; top: 30px; right: 30px; z-index: 9999;
-          background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px);
-          border-left: 5px solid #059669; padding: 20px 25px; border-radius: 12px;
-          box-shadow: 0 20px 50px rgba(0,0,0,0.15); border: 1px solid #e2e8f0;
-          display: flex; gap: 15px; align-items: center;
-          animation: slideInRight 0.4s cubic-bezier(0.23, 1, 0.32, 1) forwards;
-        }
-        .ep-toast-icon { font-size: 1.8rem; color: #059669; }
-
-        .slide-in { animation: fadeSlideUp 0.5s ease forwards; }
-        @keyframes fadeSlideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes slideInRight { from { opacity: 0; transform: translateX(50px); } to { opacity: 1; transform: translateX(0); } }
-
-        @media (max-width: 768px) {
-          .ep-form-card { padding: 30px 20px; }
-          .ep-grid { grid-template-columns: 1fr; }
-          .ep-full { grid-column: span 1; }
-          .ep-step-label { display: none; }
-          .ep-review-row { flex-direction: column; align-items: flex-start; gap: 5px; }
-          .ep-review-val { text-align: left; }
-        }
-      `}</style>
-
+    
       {toast && (
-        <div className="ep-toast">
+        /* ACCESSIBILITY: role="alert" ensures screen readers announce the message immediately */
+        <div className="ep-toast" role="alert">
           <i className="bi bi-check-circle-fill ep-toast-icon"></i>
           <div>
             <h4>{toast.title}</h4>
@@ -445,7 +273,7 @@ const handleSubmit = async () => {
           </div>
 
           <div className="ep-stepper-container">
-            <div className="ep-stepper">
+            <div className="ep-stepper" aria-label="Progress Stepper">
               <div className="ep-progress-bg"></div>
               <div className="ep-progress-fill" style={{ width: `${(currentStep / (steps.length - 1)) * 90 + 5}%` }}></div>
               {steps.map((step, idx) => (
@@ -458,12 +286,19 @@ const handleSubmit = async () => {
           </div>
 
           <form onSubmit={(e) => e.preventDefault()}>
-            {/* STEP 1: IDENTITY */}
             {currentStep === 0 && (
               <div className="slide-in">
                 <div className="ep-toggle-wrapper">
-                  <span className="ep-toggle-label">Who is this request for?</span>
-                  <div className="ep-toggle-container" onClick={() => setRequestMode(requestMode === 'Self' ? 'Others' : 'Self')}>
+                  <span className="ep-toggle-label" id="mode-label">Who is this request for?</span>
+                  <div 
+                    className="ep-toggle-container" 
+                    onClick={() => setRequestMode(requestMode === 'Self' ? 'Others' : 'Self')}
+                    /* ACCESSIBILITY: keyboard support and hover descriptions */
+                    role="button"
+                    tabIndex="0"
+                    aria-labelledby="mode-label"
+                    title="Click to toggle between requesting for yourself or someone else"
+                  >
                     <div className={`ep-toggle-option ${requestMode === 'Self' ? 'active' : ''}`}>Myself</div>
                     <div className={`ep-toggle-option ${requestMode === 'Others' ? 'active' : ''}`}>Someone Else</div>
                     <div className="ep-toggle-slider" style={{ transform: requestMode === 'Self' ? 'translateX(0)' : 'translateX(100%)' }}></div>
@@ -474,42 +309,58 @@ const handleSubmit = async () => {
                   <div className="slide-in">
                     <h4 className="ep-section-title"><i className="bi bi-person-bounding-box"></i> Your Information</h4>
                     <div className="ep-grid">
-                      <div className="ep-input-group"><label>First Name</label><input type="text" value={formData.fName} readOnly /></div>
-                      <div className="ep-input-group"><label>Middle Name</label><input type="text" value={formData.mName} readOnly /></div>
-                      <div className="ep-input-group"><label>Last Name</label><input type="text" value={formData.lName} readOnly /></div>
-                      <div className="ep-input-group"><label>Suffix</label><input type="text" value={formData.suffix} readOnly /></div>
-                      <div className="ep-input-group"><label>Civil Status</label><input type="text" value={formData.civilStatus} readOnly /></div>
-                      <div className="ep-input-group"><label>Sector</label><input type="text" value={formData.sector} readOnly /></div>
+                      <div className="ep-input-group"><label>First Name</label><input type="text" value={formData.fName} readOnly title="Your first name (Locked)" /></div>
+                      <div className="ep-input-group"><label>Middle Name</label><input type="text" value={formData.mName} readOnly title="Your middle name (Locked)" /></div>
+                      <div className="ep-input-group"><label>Last Name</label><input type="text" value={formData.lName} readOnly title="Your last name (Locked)" /></div>
+                      <div className="ep-input-group"><label>Suffix</label><input type="text" value={formData.suffix} readOnly title="Your suffix (Locked)" /></div>
+                      <div className="ep-input-group"><label>Age</label><input type="text" value={formData.age} readOnly title="Your age (Locked)" /></div>
+                      <div className="ep-input-group"><label>Gender</label><input type="text" value={formData.gender} readOnly title="Your Gender (Locked)" /></div>
+                      <div className="ep-input-group"><label>Civil Status</label><input type="text" value={formData.civil_status} readOnly title="Your civil status (Locked)" /></div>
+                      <div className="ep-input-group"><label>Sector</label><input type="text" value={formData.sector} readOnly title="Your special sector (Locked)" /></div>
                     </div>
                   </div>
                 ) : (
                   <div className="slide-in">
                     <h4 className="ep-section-title"><i className="bi bi-person-add"></i> Beneficiary Details</h4>
                     <div className="ep-grid">
-                      <div className="ep-input-group"><label>First Name *</label><input type="text" name="other_fname" value={formData.other_fname} onChange={handleInputChange} placeholder="Enter First Name" /></div>
-                      <div className="ep-input-group"><label>Middle Name</label><input type="text" name="other_mname" value={formData.other_mname} onChange={handleInputChange} placeholder="Enter Middle Name" /></div>
-                      <div className="ep-input-group"><label>Last Name *</label><input type="text" name="other_lname" value={formData.other_lname} onChange={handleInputChange} placeholder="Enter Last Name" /></div>
-                      <div className="ep-input-group"><label>Suffix</label><input type="text" name="other_suffix" value={formData.other_suffix} onChange={handleInputChange} placeholder="Suffix" /></div>
+                      <div className="ep-input-group"><label htmlFor="other_fname">First Name *</label><input type="text" id="other_fname" name="other_fname" value={formData.other_fname} onChange={handleInputChange} placeholder="Enter First Name" title="Type the beneficiary's first name" /></div>
+                      <div className="ep-input-group"><label htmlFor="other_mname">Middle Name</label><input type="text" id="other_mname" name="other_mname" value={formData.other_mname} onChange={handleInputChange} placeholder="Enter Middle Name" title="Type the beneficiary's middle name" /></div>
+                      <div className="ep-input-group"><label htmlFor="other_lname">Last Name *</label><input type="text" id="other_lname" name="other_lname" value={formData.other_lname} onChange={handleInputChange} placeholder="Enter Last Name" title="Type the beneficiary's last name" /></div>
+                      <div className="ep-input-group"><label htmlFor="other_suffix">Suffix</label><input type="text" id="other_suffix" name="other_suffix" value={formData.other_suffix} onChange={handleInputChange} placeholder="Suffix" title="Type the beneficiary's suffix (Jr, Sr, etc.)" /></div>
+                      
                       <div className="ep-input-group">
-                        <label>Gender *</label>
-                        <select name="other_gender" value={formData.other_gender} onChange={handleInputChange}>
+                        <label htmlFor="other_birth_date">Birthdate *</label>
+                        <input type="date" id="other_birth_date" name="other_birth_date" value={formData.other_birth_date} onChange={handleInputChange} title="Select the beneficiary's Birthdate" />
+                      </div>
+                      
+                      <div className="ep-input-group">
+                        <label htmlFor="other_gender">Gender *</label>
+                        <select id="other_gender" name="other_gender" value={formData.other_gender} onChange={handleInputChange} title="Select the beneficiary's gender">
                           <option value="">Select Gender</option><option value="Male">Male</option><option value="Female">Female</option>
                         </select>
                       </div>
                       <div className="ep-input-group">
-                        <label>Civil Status *</label>
-                        <select name="other_civil_status" value={formData.other_civil_status} onChange={handleInputChange}>
-                          <option value="">Select Status</option><option value="Single">Single</option><option value="Married">Married</option>
+                        <label htmlFor="other_civil_status">Civil Status *</label>
+                        <select id="other_civil_status" name="other_civil_status" value={formData.other_civil_status} onChange={handleInputChange} title="Select the beneficiary's civil status">
+                          <option value="">Select Status</option><option value="Single">Single</option><option value="Married">Married</option><option value="Widowed">Widowed</option><option value="Separated">Separated</option>
                         </select>
                       </div>
+
+                      <div className="ep-input-group">
+                        <label htmlFor="other_sector">Sector </label>
+                        <select id="other_sector" name="other_sector" value={formData.other_sector} onChange={handleInputChange} title="Select the beneficiary's sector">
+                          <option value="">Select Sector</option><option value="Senior Citizen">Senior Citizen</option><option value="PWD">PWD</option><option value="Solo Parent">Solo Parent</option><option value="4Ps">4Ps Beneficiary</option>
+                        </select>
+                      </div>
+
                     </div>
                   </div>
                 )}
 
                 <div className="ep-grid" style={{ marginTop: '30px' }}>
-                  <div className="ep-input-group ep-full">
-                    <label>Purpose of Request *</label>
-                    <select name="purpose" value={formData.purpose} onChange={handleInputChange}>
+                 <div className="ep-input-group ep-full">
+                    <label htmlFor="purpose">Purpose of Request *</label>
+                    <select id="purpose" name="purpose" value={formData.purpose} onChange={handleInputChange} aria-required="true" title="Select the official reason for this clearance">
                       <option value="">Select Official Purpose</option>
                       <option value="Employment">Employment</option>
                       <option value="Postal ID">Postal ID Requirement</option>
@@ -518,18 +369,20 @@ const handleSubmit = async () => {
                       <option value="Bank Account">Opening Bank Account</option>
                       <option value="Other">Other</option>
                     </select>
+                    <p className="ep-accessibility-hint">
+                    <i className="bi bi-info-circle"> Choose the reason why you need this document.</i> 
+                     </p>
                   </div>
                   {formData.purpose === 'Other' && (
                     <div className="ep-input-group ep-full slide-in">
-                      <label>Please Specify Purpose *</label>
-                      <input type="text" name="otherPurposeText" value={formData.otherPurposeText} onChange={handleInputChange} placeholder="Enter specific purpose" />
+                      <label htmlFor="otherPurposeText">Please Specify Purpose *</label>
+                      <input type="text" id="otherPurposeText" name="otherPurposeText" value={formData.otherPurposeText} onChange={handleInputChange} placeholder="Enter specific purpose" title="Type your specific reason for this request" />
                     </div>
                   )}
                 </div>
               </div>
             )}
 
-            {/* STEP 2: RESIDENCY */}
             {currentStep === 1 && (
               <div className="slide-in">
                 <h4 className="ep-section-title"><i className="bi bi-house-door"></i> Address Verification</h4>
@@ -538,26 +391,26 @@ const handleSubmit = async () => {
                     <>
                       <div className="ep-input-group ep-full">
                         <label>Registered Address</label>
-                        <input type="text" value={`${formData.block_lot}, ${formData.street}, ${formData.subdivision}, Zone ${formData.zone}`} readOnly />
+                        
+                        <input type="text" value={`${formData.block_lot}, ${formData.street}, ${formData.subdivision}, Zone ${formData.zone}`} readOnly title="Your current registered address (Locked)" />
                       </div>
-                      <div className="ep-input-group"><label>Years of Residency</label><input type="text" value={formData.years_in_PB2} readOnly /></div>
-                      <div className="ep-input-group"><label>Precinct No.</label><input type="text" value={formData.precinct} readOnly /></div>
+                      <div className="ep-input-group"><label>Years of Residency</label><input type="text" value={formData.years_in_PB2} readOnly title="Locked field" /></div>
+                      <div className="ep-input-group"><label>Precinct No.</label><input type="text" value={formData.precinct} readOnly title="Locked field" /></div>
                     </>
                   ) : (
                     <>
-                      <div className="ep-input-group"><label>Block/Lot *</label><input type="text" name="other_block_lot" value={formData.other_block_lot} onChange={handleInputChange} placeholder="Blk 1 Lot 2" /></div>
-                      <div className="ep-input-group"><label>Street *</label><input type="text" name="other_street" value={formData.other_street} onChange={handleInputChange} placeholder="Street Name" /></div>
-                      <div className="ep-input-group"><label>Subdivision *</label><input type="text" name="other_subdivision" value={formData.other_subdivision} onChange={handleInputChange} placeholder="Subdivision Name" /></div>
-                      <div className="ep-input-group"><label>Zone *</label><input type="text" name="other_zone" value={formData.other_zone} onChange={handleInputChange} placeholder="Zone No." /></div>
-                      <div className="ep-input-group"><label>Years of Residency *</label><input type="text" name="other_years_in_PB2" value={formData.other_years_in_PB2} onChange={handleInputChange} placeholder="Ex: 5" /></div>
-                      <div className="ep-input-group"><label>Precinct No. (Optional)</label><input type="text" name="other_precinct" value={formData.other_precinct} onChange={handleInputChange} placeholder="Precinct No." /></div>
+                      <div className="ep-input-group"><label htmlFor="other_block_lot">Block/Lot *</label><input type="text" id="other_block_lot" name="other_block_lot" value={formData.other_block_lot} onChange={handleInputChange} placeholder="Blk 1 Lot 2" title="Type the beneficiary's block and lot number" /></div>
+                      <div className="ep-input-group"><label htmlFor="other_street">Street *</label><input type="text" id="other_street" name="other_street" value={formData.other_street} onChange={handleInputChange} placeholder="Street Name" title="Type the street name" /></div>
+                      <div className="ep-input-group"><label htmlFor="other_subdivision">Subdivision *</label><input type="text" id="other_subdivision" name="other_subdivision" value={formData.other_subdivision} onChange={handleInputChange} placeholder="Subdivision Name" title="Type the subdivision name" /></div>
+                      <div className="ep-input-group"><label htmlFor="other_zone">Zone </label><input type="text" id="other_zone" name="other_zone" value={formData.other_zone} onChange={handleInputChange} placeholder="Zone No." title="Type the zone number" /></div>
+                      <div className="ep-input-group"><label htmlFor="other_years_in_PB2">Years of Residency *</label><input type="text" id="other_years_in_PB2" name="other_years_in_PB2" value={formData.other_years_in_PB2} onChange={handleInputChange} placeholder="Ex: 5" title="Number of years the beneficiary has lived here" /></div>
+                      <div className="ep-input-group"><label htmlFor="other_precinct">Precinct No. (Optional)</label><input type="text" id="other_precinct" name="other_precinct" value={formData.other_precinct} onChange={handleInputChange} placeholder="Precinct No." title="Beneficiary's precinct number" /></div>
                     </>
                   )}
                 </div>
               </div>
             )}
 
-            {/* STEP 3: UPLOADS */}
             {currentStep === 2 && (
               <div className="slide-in">
                 <h4 className="ep-section-title"><i className="bi bi-file-earmark-lock"></i> Required Documents</h4>
@@ -574,16 +427,15 @@ const handleSubmit = async () => {
               </div>
             )}
 
-             {/* STEP 4: REVIEW (MATCHED TO SCREENSHOT) */}
             {currentStep === 3 && (
               <div className="slide-in">
-                <div className="ep-review-box">
+                <div className="ep-review-box" aria-live="polite">
                   <h4 className="ep-section-title" style={{ border: 'none', marginBottom: '5px' }}>
                     <i className="bi bi-file-earmark-text text-success me-2"></i> Review & Submit Request
                   </h4>
                   
                   <div className="ep-review-category">
-                    <h5>System Details</h5>
+                    <h4>System Details</h4>
                     <div className="ep-review-row">
                       <span className="ep-review-label">Tracking Number</span>
                       <span className="ep-review-val highlight">{trackingCode}</span>
@@ -591,7 +443,7 @@ const handleSubmit = async () => {
                   </div>
 
                   <div className="ep-review-category">
-                    <h5>Identity Details</h5>
+                    <h4>Identity Details</h4>
                     <div className="ep-review-row">
                       <span className="ep-review-label">Full Name</span>
                       <span className="ep-review-val">
@@ -600,9 +452,27 @@ const handleSubmit = async () => {
                           : `${formData.other_fname} ${formData.other_mname} ${formData.other_lname} ${formData.other_suffix}`.toUpperCase()}
                       </span>
                     </div>
+                        
+                    <div className="ep-review-row">
+                      <span className="ep-review-label">Age</span>
+                      <span className="ep-review-val">{requestMode === 'Self' ? formData.age : formData.other_age}</span>
+                    </div>
+                    
+                    <div className="ep-review-row">
+                      <span className="ep-review-label">Gender</span>
+                      <span className="ep-review-val">{requestMode === 'Self' ? formData.gender : formData.other_gender}</span>
+                    </div>
+
+                    <div className="ep-review-row">
+                      <span className="ep-review-label">Sector</span>
+                      <span className="ep-review-val">{requestMode === 'Self' ? formData.sector : formData.other_sector}</span>
+                    </div>
+
+
+
                     <div className="ep-review-row">
                       <span className="ep-review-label">Civil Status</span>
-                      <span className="ep-review-val">{requestMode === 'Self' ? formData.civilStatus : formData.other_civil_status}</span>
+                      <span className="ep-review-val">{requestMode === 'Self' ? formData.civil_status : formData.other_civil_status}</span>
                     </div>
                     <div className="ep-review-row">
                       <span className="ep-review-label">Request For</span>
@@ -611,13 +481,13 @@ const handleSubmit = async () => {
                   </div>
 
                   <div className="ep-review-category">
-                    <h5>Location & Group</h5>
+                    <h4>Location & Group</h4>
                     <div className="ep-review-row">
                       <span className="ep-review-label">Complete Address</span>
                       <span className="ep-review-val">
                         {requestMode === 'Self' 
                           ? `${formData.block_lot}, ${formData.street}, ${formData.subdivision}, Zone ${formData.zone}` 
-                          : `${formData.other_block_lot}, ${formData.other_street}, ${formData.other_subdivision}, Zone ${formData.other_zone}`}
+                          : `${formData.other_block_lot}, ${formData.other_street}, ${formData.other_subdivision}, ${formData.other_zone}`}
                       </span>
                     </div>
                     <div className="ep-review-row">
@@ -635,7 +505,7 @@ const handleSubmit = async () => {
                   </div>
 
                   <div className="ep-review-category">
-                    <h5>Request Purpose</h5>
+                    <h4>Request Purpose</h4>
                     <div className="ep-review-row">
                       <span className="ep-review-label">Main Purpose</span>
                       <span className="ep-review-val">{formData.purpose === 'Other' ? formData.otherPurposeText : formData.purpose}</span>
@@ -643,7 +513,7 @@ const handleSubmit = async () => {
                   </div>
 
                   <div className="ep-review-category">
-                    <h5>Attachments Summary</h5>
+                    <h4>Attachments Summary</h4>
                     <div className="mt-2">
                       <span className="ep-attachment-tag"><i className="bi bi-paperclip"></i> ID Front Image</span>
                       <span className="ep-attachment-tag"><i className="bi bi-paperclip"></i> ID Back Image</span>
@@ -652,27 +522,48 @@ const handleSubmit = async () => {
                       </span>
                     </div>
                   </div>
-
+                  
+                      <div className="ep-card-accent"></div>
+                      <div className="ep-card-body">
+                        <div className="ep-card-text">
+                          <div className="ep-review-category">
+                          <h4>Review & Approval Process</h4>
+                          </div>
+                          <h5>
+                            Your request is now queued for <i>official verification</i>. 
+                            An email notification will be sent to your registered address once the 
+                            Barangay Admin has approved your clearance.
+                          </h5>
+                        </div>
+                      </div>
+                    </div>
                 </div>
-              </div>
+              
             )}
 
             <div className="ep-actions">
-              <button type="button" className="ep-btn ep-btn-prev" disabled={currentStep === 0} onClick={() => setCurrentStep(currentStep - 1)}>
+              <button 
+                type="button"
+                className="ep-btn ep-btn-prev" 
+                disabled={currentStep === 0} 
+                onClick={() => setCurrentStep(currentStep - 1)}
+               >
                 <i className="bi bi-arrow-left"></i> Back
               </button>
-              <button 
+             <button 
                 type="button" 
                 className="ep-btn ep-btn-next" 
-                disabled={!validateStep()}
+                disabled={!validateStep() || isSubmitting} // Disable if validating OR already submitting
                 onClick={() => currentStep === 3 ? handleSubmit() : setCurrentStep(currentStep + 1)}
               >
-                {currentStep === 3 ? 'Confirm & Submit' : 'Continue'} <i className={currentStep === 3 ? "bi bi-send-fill" : "bi bi-arrow-right"}></i>
+                {currentStep === 3 ? (isSubmitting ? 'Submitting...' : 'Confirm & Submit') : 'Continue'} 
+                <i className={currentStep === 3 ? (isSubmitting ? "bi bi-hourglass-split" : "bi bi-send-fill") : "bi bi-arrow-right"}></i>
               </button>
             </div>
           </form>
         </div>
       </div>
+      <Footer />
     </>
   );
 };

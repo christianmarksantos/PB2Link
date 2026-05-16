@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-const API_BASE = '/api_backend';
+const API_BASE = 'http://localhost/PB2Link%204-30/PB2Link/backend/api';
 
 const BookingPage = () => {
   const navigate = useNavigate();

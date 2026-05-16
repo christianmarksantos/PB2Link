@@ -5,7 +5,37 @@ import Header from '../components/Header';
 import Footer from '../components/Footer';
 import '../styles/incident-report.css';
 
-const API_BASE = '/api_backend'; 
+const API_BASE = '/api_backend';
+
+const EMPTY_RESIDENT_DATA = {
+  fullname: '',
+  address: '',
+  contact_num: '',
+  email: '',
+};
+
+const buildFullName = (resident) => [
+  resident.fName,
+  resident.mName,
+  resident.lName,
+  resident.suffix && resident.suffix !== 'N/A' ? resident.suffix : '',
+].filter(Boolean).join(' ');
+
+const buildAddress = (resident) => [
+  resident.house_no,
+  resident.street,
+  resident.subdivision,
+  resident.zone ? `Zone ${resident.zone}` : '',
+].filter(Boolean).join(', ');
+
+const normalizeResidentData = (profile = {}) => ({
+  ...EMPTY_RESIDENT_DATA,
+  ...profile,
+  fullname: profile.fullname || buildFullName(profile),
+  address: profile.address || buildAddress(profile),
+  contact_num: profile.contact_num || '',
+  email: profile.email || '',
+});
 
 const IncidentReport = () => {
   const navigate = useNavigate();
@@ -16,9 +46,7 @@ const IncidentReport = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [toast, setToast] = useState({ show: false, title: '', msg: '', type: 'success' });
 
-  const [residentData, setResidentData] = useState({
-    fullname: '', address: '', contact_num: '', email: '',
-  });
+  const [residentData, setResidentData] = useState(EMPTY_RESIDENT_DATA);
 
   const [formData, setFormData] = useState({
     contact_person_name: '',
@@ -51,11 +79,13 @@ const IncidentReport = () => {
         const response = await fetch(`${API_BASE}/get_user_profile.php?user_id=${userId}`);
         const data = await response.json();
         if (data.success) {
-          setResidentData(data.resident);
+          const resident = normalizeResidentData(data.resident || data.data);
+
+          setResidentData(resident);
           // Auto-fill incident defaults with resident info
           setFormData(prev => ({
             ...prev,
-            incident_address: data.resident.address || '',
+            incident_address: resident.address,
           }));
         }
       } catch (err) {
@@ -75,6 +105,18 @@ const IncidentReport = () => {
         return;
     }
 
+    const missingReporterInfo = !residentData.fullname || !residentData.address || !residentData.contact_num || !residentData.email;
+    if (missingReporterInfo) {
+        triggerToast('Incomplete Profile', 'Your registered name, contact number, address, and email are required before submitting.', 'error');
+        return;
+    }
+
+    const missingIncidentInfo = Object.entries(formData).some(([, value]) => !value);
+    if (missingIncidentInfo) {
+        triggerToast('Incomplete Report', 'Please complete all incident fields and add an evidence attachment.', 'error');
+        return;
+    }
+
     setSubmitting(true);
     const dataToSend = new FormData();
     
@@ -86,14 +128,14 @@ const IncidentReport = () => {
     });
 
     // 2. Append Metadata
-    dataToSend.append('user_id', user.user_id);
+    dataToSend.append('user_id', user.user_id || localStorage.getItem('user_id'));
     dataToSend.append('track_code', trackingCode);
 
     // 3. Append Reporter Details (The "Hidden" fields the backend needs)
     dataToSend.append('reporter_name', residentData.fullname);
-    dataToSend.append('reporter_address', residentData.address || 'N/A');
-    dataToSend.append('reporter_contact', residentData.contact_num || 'N/A');
-    dataToSend.append('reporter_email', residentData.email || 'N/A'); // ADDED THIS LINE
+    dataToSend.append('reporter_address', residentData.address);
+    dataToSend.append('reporter_contact', residentData.contact_num);
+    dataToSend.append('reporter_email', residentData.email);
 
     try {
       const response = await fetch(`${API_BASE}/report_incident.php`, {
@@ -160,19 +202,19 @@ const IncidentReport = () => {
                 <div className="input-grid">
                   <div className="form-group span-2">
                     <label>Full Name</label>
-                    <input type="text" value={residentData.fullname} readOnly placeholder="Log in to view" />
+                    <input type="text" required value={residentData.fullname} readOnly placeholder="Log in to view" />
                   </div>
                   <div className="form-group">
                     <label>Contact Number</label>
-                    <input type="text" value={residentData.contact_num} readOnly placeholder="N/A" />
+                    <input type="text" required value={residentData.contact_num} readOnly placeholder="N/A" />
                   </div>
                   <div className="form-group span-2">
                     <label>Address</label>
-                    <input type="text" value={residentData.address} readOnly placeholder="N/A" />
+                    <input type="text" required value={residentData.address} readOnly placeholder="N/A" />
                   </div>
                   <div className="form-group">
                     <label>Email Address</label>
-                    <input type="email" value={residentData.email} readOnly placeholder="N/A" />
+                    <input type="email" required value={residentData.email} readOnly placeholder="N/A" />
                   </div>
                 </div>
 
@@ -194,7 +236,7 @@ const IncidentReport = () => {
                   </div>
                   <div className="form-group">
                     <label>Involved Contact #</label>
-                    <input type="text" value={formData.contact_person_number}
+                    <input type="text" required value={formData.contact_person_number}
                       onChange={(e) => setFormData({...formData, contact_person_number: e.target.value})} />
                   </div>
                   
@@ -233,7 +275,7 @@ const IncidentReport = () => {
                   <div className="form-group span-3">
                     <label>Evidence Attachment</label>
                     <div className="file-input-wrapper">
-                      <input type="file" accept="image/*,video/*" 
+                      <input type="file" required accept=".jpg,.jpeg,.png,.mp4" 
                         onChange={(e) => setFormData({...formData, attachment: e.target.files[0]})} />
                     </div>
                   </div>
